@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.12"
 polars = "^1.23.0"
 loguru = "^0.7.3"
+smolagents = "^1.9.2"
 
 
 [tool.poetry.group.dev.dependencies]
