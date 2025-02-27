@@ -70,13 +70,5 @@ models/
 *.pth
 *.h5
 
-# Data
-data/
-*.csv
-*.json
-*.parquet
-*.feather
-*.arrow
-*.db
-*.sqlite
+
 
