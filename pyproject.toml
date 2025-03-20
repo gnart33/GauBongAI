@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "gauai"
+version = "0.1.0"
+description = "An intelligent data analysis framework"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{ include = "gauai" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.0.0"
+numpy = "^1.24.0"
+scipy = "^1.10.0"
+scikit-learn = "^1.3.0"
+matplotlib = "^3.7.0"
+seaborn = "^0.12.0"
+jupyter = "^1.0.0"
+ipykernel = "^6.0.0"
+pandasai = "^2.0.0"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+black = "^23.0.0"
+isort = "^5.12.0"
+flake8 = "^6.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short --cov=gauai --cov-report=term-missing"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
