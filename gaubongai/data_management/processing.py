@@ -1,19 +1,31 @@
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import pandas as pd
+import warnings
 
 from .interfaces import DataInfo, DataCategory
 from .managers import PluginManager, PipelineManager
-from .storage import DataStore
+from .storage import DataStorage
 
 
-class DataIngestionManager:
-    """Manages data ingestion and processing using a hybrid plugin-pipeline architecture."""
+class DataProcessingManager:
+    """Manages data processing using a hybrid plugin-pipeline architecture.
+
+    This class coordinates the complete data processing workflow:
+    - Loading data through plugins
+    - Transforming data through pipelines
+    - Storing processed data
+
+    Attributes:
+        plugin_manager: Manages data source plugins
+        pipeline_manager: Manages data transformation pipelines
+        data_storage: Handles data persistence
+    """
 
     def __init__(self):
         self.plugin_manager = PluginManager()
         self.pipeline_manager = PipelineManager()
-        self.data_store = DataStore()
+        self.data_storage = DataStorage()
 
     def process_file(
         self,
@@ -55,7 +67,7 @@ class DataIngestionManager:
             data_info = pipeline.execute(data_info)
 
         # Store the result
-        self.data_store.store(name, data_info)
+        self.data_storage.store(name, data_info)
 
         return data_info
 
@@ -63,13 +75,13 @@ class DataIngestionManager:
         self, name: str, category: Optional[DataCategory] = None
     ) -> Optional[DataInfo]:
         """Retrieve stored data by name and optionally category."""
-        return self.data_store.get(name, category)
+        return self.data_storage.get(name, category)
 
     def get_metadata(
         self, name: str, category: Optional[DataCategory] = None
     ) -> Optional[Dict[str, Any]]:
         """Retrieve metadata for stored data."""
-        return self.data_store.get_metadata(name, category)
+        return self.data_storage.get_metadata(name, category)
 
     def list_data(
         self, category: Optional[DataCategory] = None
@@ -80,8 +92,8 @@ class DataIngestionManager:
         Otherwise, returns dict of names by category.
         """
         if category:
-            return self.data_store.list_by_category(category)
-        return self.data_store.list_all()
+            return self.data_storage.list_by_category(category)
+        return self.data_storage.list_all()
 
     def list_plugins(self) -> List[str]:
         """List available plugins."""

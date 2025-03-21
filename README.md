@@ -1,6 +1,6 @@
-# GauAI - Intelligent Data Analysis Framework
+# GauBongAI - Intelligent Data Analysis Framework
 
-GauAI is a powerful framework for automated data analysis and machine learning, designed to turn data into actionable intelligence through a system of coordinated agents.
+GauBongAI is a powerful framework for automated data analysis and machine learning, designed to turn data into actionable intelligence through a system of coordinated agents.
 
 ## Features
 
@@ -14,7 +14,7 @@ GauAI is a powerful framework for automated data analysis and machine learning, 
 ## Project Structure
 
 ```
-gauai/
+gaubongai/
 ├── core/
 │   ├── data_management/    # Data ingestion and management
 │   └── context/           # Analysis context and metadata
@@ -32,8 +32,8 @@ gauai/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/gauai.git
-cd gauai
+git clone https://github.com/yourusername/gaubongai.git
+cd gaubongai
 ```
 
 2. Create a virtual environment:
@@ -49,12 +49,12 @@ pip install -r requirements.txt
 
 ## Usage
 
-Basic example of using GauAI:
+Basic example of using GauBongAI:
 
 ```python
-from gauai.core.data_management import DataIngestionManager
-from gauai.agents.orchestrator import OrchestratorAgent
-from gauai.agents.ml_advisor import MLAdvisorAgent
+from gaubongai.core.data_management import DataIngestionManager
+from gaubongai.agents.orchestrator import OrchestratorAgent
+from gaubongai.agents.ml_advisor import MLAdvisorAgent
 
 # Initialize components
 data_manager = DataIngestionManager()

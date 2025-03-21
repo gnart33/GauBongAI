@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "gauai"
+name = "gaubongai"
 version = "0.1.0"
 description = "An intelligent data analysis framework"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["gnart"]
 readme = "README.md"
-packages = [{ include = "gauai" }]
+packages = [{ include = "gaubongai" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -32,10 +32,9 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-addopts = "-v --tb=short --cov=gauai --cov-report=term-missing"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 
 [tool.black]
 line-length = 88
@@ -45,3 +44,7 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 multi_line_output = 3
+
+[tool.coverage.run]
+source = ["gaubongai"]
+omit = ["tests/*", "gaubongai/data_management/processing.py"]

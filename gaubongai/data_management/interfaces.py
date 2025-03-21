@@ -1,7 +1,8 @@
-from typing import Protocol, Dict, Any, List, Union, Optional
+from typing import Protocol, Dict, Any, List, Union, Optional, runtime_checkable
 from pathlib import Path
 from enum import Enum, auto
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import copy
 
 
 class DataCategory(Enum):
@@ -14,16 +15,20 @@ class DataCategory(Enum):
     MIXED = auto()
 
 
-@dataclass
+@dataclass(frozen=True)
 class DataInfo:
-    """Container for data and its metadata."""
+    data: Any  # The actual data (e.g., DataFrame, text, image)
+    metadata: Dict[str, Any]  # Associated metadata
+    category: DataCategory  # Type of data (TABULAR, TEXT, etc.)
+    source_path: Optional[Path] = None  # Original file path
 
-    data: Any
-    metadata: Dict[str, Any]
-    category: DataCategory
-    source_path: Optional[Path] = None
+    def __post_init__(self):
+        """Make deep copies of mutable attributes."""
+        object.__setattr__(self, "data", copy.deepcopy(self.data))
+        object.__setattr__(self, "metadata", copy.deepcopy(self.metadata))
 
 
+@runtime_checkable
 class DataPlugin(Protocol):
     """Protocol for data source plugins."""
 
@@ -41,7 +46,8 @@ class DataPlugin(Protocol):
         ...
 
 
-class DataTransform(Protocol):
+@runtime_checkable
+class DataTransformation(Protocol):
     """Protocol for data transformations in the pipeline."""
 
     name: str
@@ -56,7 +62,8 @@ class DataTransform(Protocol):
         ...
 
 
-class DataValidator(Protocol):
+@runtime_checkable
+class DataValidation(Protocol):
     """Protocol for data validation."""
 
     name: str
@@ -67,6 +74,7 @@ class DataValidator(Protocol):
         ...
 
 
+@runtime_checkable
 class Pipeline(Protocol):
     """Protocol for data processing pipelines."""
 
