@@ -1,11 +1,10 @@
 import re
 from typing import Dict, Any, List
 import pandas as pd
-import numpy as np
-from ..interfaces import DataTransformation, DataInfo, DataCategory
+from ..interfaces import DataTransformer, DataContainer, DataCategory
 
 
-class TextCleaner(DataTransformation):
+class TextCleaner(DataTransformer):
     """Simple text cleaning processor."""
 
     name = "text_cleaner"
@@ -15,7 +14,7 @@ class TextCleaner(DataTransformation):
         """Initialize cleaner with optional column selection."""
         self.columns = columns
 
-    def can_transform(self, data_info: DataInfo) -> bool:
+    def can_transform(self, data_info: DataContainer) -> bool:
         """Check if data can be transformed."""
         if data_info.category not in self.supported_categories:
             return False
@@ -56,7 +55,7 @@ class TextCleaner(DataTransformation):
             return [col for col in self.columns if col in df.columns]
         return list(df.select_dtypes(include=["object"]).columns)
 
-    def transform(self, data_info: DataInfo) -> DataInfo:
+    def transform(self, data_info: DataContainer) -> DataContainer:
         """Transform the data by cleaning text."""
         if not self.can_transform(data_info):
             raise ValueError(f"Cannot transform data of type {type(data_info.data)}")
@@ -87,7 +86,7 @@ class TextCleaner(DataTransformation):
             changes
         ]
 
-        return DataInfo(
+        return DataContainer(
             data=cleaned_data,
             metadata=new_metadata,
             category=data_info.category,

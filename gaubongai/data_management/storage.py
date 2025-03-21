@@ -1,6 +1,5 @@
 from typing import Dict, Any, List, Optional
-from pathlib import Path
-from .interfaces import DataInfo, DataCategory
+from .interfaces import DataContainer, DataCategory
 
 
 class DataStorage:
@@ -8,17 +7,17 @@ class DataStorage:
 
     def __init__(self):
         # Store data by category and name
-        self._storage: Dict[DataCategory, Dict[str, DataInfo]] = {
+        self._storage: Dict[DataCategory, Dict[str, DataContainer]] = {
             category: {} for category in DataCategory
         }
 
-    def store(self, name: str, data_info: DataInfo) -> None:
+    def store(self, name: str, data_info: DataContainer) -> None:
         """Store data with its category."""
         self._storage[data_info.category][name] = data_info
 
     def get(
         self, name: str, category: Optional[DataCategory] = None
-    ) -> Optional[DataInfo]:
+    ) -> Optional[DataContainer]:
         """
         Retrieve data by name and optionally category.
         If category is not specified, search all categories.

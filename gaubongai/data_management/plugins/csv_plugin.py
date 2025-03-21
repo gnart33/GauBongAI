@@ -6,7 +6,7 @@ import polars as pl
 
 from gaubongai.data_management.interfaces import (
     DataPlugin,
-    DataInfo,
+    DataContainer,
     DataCategory,
 )
 
@@ -19,7 +19,7 @@ class PandasCSVPlugin(DataPlugin):
     data_category = DataCategory.TABULAR
     priority = 1
 
-    def load(self, file_path: Path, **kwargs) -> DataInfo:
+    def load(self, file_path: Path, **kwargs) -> DataContainer:
         """Load CSV file using pandas."""
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -32,7 +32,9 @@ class PandasCSVPlugin(DataPlugin):
                 "dtypes": data.dtypes.astype(str).to_dict(),
                 "implementation": "pandas",
             }
-            return DataInfo(data=data, metadata=metadata, category=self.data_category)
+            return DataContainer(
+                data=data, metadata=metadata, category=self.data_category
+            )
         except Exception as e:
             raise ValueError(f"Error loading CSV file: {e}")
 
@@ -45,7 +47,7 @@ class PolarsCSVPlugin(DataPlugin):
     data_category = DataCategory.TABULAR
     priority = 2  # Higher priority for large files
 
-    def load(self, file_path: Path, **kwargs) -> DataInfo:
+    def load(self, file_path: Path, **kwargs) -> DataContainer:
         """Load CSV file using polars."""
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -61,6 +63,8 @@ class PolarsCSVPlugin(DataPlugin):
                 "implementation": "polars",
                 "memory_usage": data.estimated_size(),
             }
-            return DataInfo(data=data, metadata=metadata, category=self.data_category)
+            return DataContainer(
+                data=data, metadata=metadata, category=self.data_category
+            )
         except Exception as e:
             raise ValueError(f"Error loading CSV file: {e}")
