@@ -1,6 +1,8 @@
 import pytest
 from pathlib import Path
 import pandas as pd
+import polars as pl
+from typing import Dict, Any
 from unittest.mock import Mock, patch
 from gaubongai.data_management.processing import DataProcessingManager
 from gaubongai.data_management.interfaces import (
@@ -9,6 +11,7 @@ from gaubongai.data_management.interfaces import (
     DataPlugin,
     DataTransformation,
     Pipeline,
+    PluginVariant,
 )
 
 
@@ -269,3 +272,162 @@ def test_load_csv_backward_compatibility(
     assert "A" in result.columns
     pd.testing.assert_frame_equal(result, test_data)
     mock_plugin_instance.load.assert_called_once_with(file_path)
+
+
+def test_processing_manager_init():
+    """Test processing manager initialization."""
+    manager = DataProcessingManager()
+    assert manager.plugin_manager is not None
+    assert manager.pipeline_manager is not None
+    assert manager.data_storage is not None
+
+
+def test_process_file_with_default_variant(mock_plugins, mock_file_path):
+    """Test processing file with default variant."""
+    manager = DataProcessingManager()
+    for plugin in mock_plugins:
+        manager.plugin_manager.register_plugin(plugin)
+
+    data_info = manager.process_file(mock_file_path, name="test")
+    assert data_info is not None
+    assert data_info.category == DataCategory.TABULAR
+    assert "test" in data_info.metadata.get("columns", [])
+
+
+def test_process_file_with_memory_efficient_variant(mock_plugins, mock_file_path):
+    """Test processing file with memory efficient variant."""
+    manager = DataProcessingManager()
+    for plugin in mock_plugins:
+        manager.plugin_manager.register_plugin(plugin)
+
+    data_info = manager.process_file(
+        mock_file_path, name="test", plugin_variant=PluginVariant.MEMORY_EFFICIENT
+    )
+    assert data_info is not None
+    assert data_info.metadata.get("implementation") == "memory_efficient"
+    assert "memory_usage" in data_info.metadata
+
+
+def test_process_file_with_pipeline(mock_plugins, mock_transformation, mock_file_path):
+    """Test processing file with pipeline."""
+    manager = DataProcessingManager()
+    for plugin in mock_plugins:
+        manager.plugin_manager.register_plugin(plugin)
+
+    manager.pipeline_manager.register_processor(mock_transformation)
+    manager.pipeline_manager.create_pipeline(
+        "test_pipeline", [mock_transformation.name]
+    )
+
+    data_info = manager.process_file(
+        mock_file_path, name="test", pipeline_name="test_pipeline"
+    )
+    assert data_info is not None
+
+
+def test_process_file_nonexistent_plugin():
+    """Test processing file with no available plugin."""
+    manager = DataProcessingManager()
+    with pytest.raises(ValueError, match="No plugin found for file"):
+        manager.process_file(Path("test.unsupported"))
+
+
+def test_process_file_nonexistent_pipeline(mock_plugins, mock_file_path):
+    """Test processing file with nonexistent pipeline."""
+    manager = DataProcessingManager()
+    for plugin in mock_plugins:
+        manager.plugin_manager.register_plugin(plugin)
+
+    with pytest.raises(ValueError, match="Pipeline not found"):
+        manager.process_file(mock_file_path, name="test", pipeline_name="nonexistent")
+
+
+def test_list_available_variants(mock_plugins, mock_file_path):
+    """Test listing available variants for a file."""
+    manager = DataProcessingManager()
+    for plugin in mock_plugins:
+        manager.plugin_manager.register_plugin(plugin)
+
+    variants_info = manager.list_available_variants(mock_file_path)
+    assert variants_info["file_type"] == mock_file_path.suffix
+    assert len(variants_info["variants"]) == len(mock_plugins)
+
+    # Check variant information
+    for variant_info in variants_info["variants"]:
+        assert "name" in variant_info
+        assert "variant" in variant_info
+        assert "priority" in variant_info
+
+
+def test_process_csv_file_pandas(sample_csv_file):
+    """Test processing CSV file with pandas plugin."""
+    manager = DataProcessingManager()
+    data_info = manager.process_file(
+        sample_csv_file, name="test_csv", plugin_variant=PluginVariant.DEFAULT
+    )
+    assert data_info is not None
+    assert isinstance(data_info.data, pd.DataFrame)
+    assert data_info.metadata.get("implementation") == "pandas"
+
+
+def test_process_csv_file_polars(sample_csv_file):
+    """Test processing CSV file with polars plugin."""
+    manager = DataProcessingManager()
+    data_info = manager.process_file(
+        sample_csv_file, name="test_csv", plugin_variant=PluginVariant.MEMORY_EFFICIENT
+    )
+    assert data_info is not None
+    assert isinstance(data_info.data, pl.DataFrame)
+    assert data_info.metadata.get("implementation") == "polars"
+    assert "memory_usage" in data_info.metadata
+
+
+def test_get_data(mock_plugins, mock_file_path):
+    """Test retrieving stored data."""
+    manager = DataProcessingManager()
+    for plugin in mock_plugins:
+        manager.plugin_manager.register_plugin(plugin)
+
+    # Process and store data
+    manager.process_file(mock_file_path, name="test")
+
+    # Retrieve data
+    data_info = manager.get_data("test")
+    assert data_info is not None
+    assert data_info.category == DataCategory.TABULAR
+
+
+def test_get_metadata(mock_plugins, mock_file_path):
+    """Test retrieving metadata."""
+    manager = DataProcessingManager()
+    for plugin in mock_plugins:
+        manager.plugin_manager.register_plugin(plugin)
+
+    # Process and store data
+    manager.process_file(mock_file_path, name="test")
+
+    # Retrieve metadata
+    metadata = manager.get_metadata("test")
+    assert metadata is not None
+    assert "columns" in metadata
+
+
+def test_list_data(mock_plugins, mock_file_path):
+    """Test listing available data."""
+    manager = DataProcessingManager()
+    for plugin in mock_plugins:
+        manager.plugin_manager.register_plugin(plugin)
+
+    # Process and store data
+    manager.process_file(mock_file_path, name="test")
+
+    # List all data
+    data_list = manager.list_data()
+    assert isinstance(data_list, dict)
+    assert DataCategory.TABULAR in data_list
+    assert "test" in data_list[DataCategory.TABULAR]
+
+    # List data by category
+    category_list = manager.list_data(DataCategory.TABULAR)
+    assert isinstance(category_list, list)
+    assert "test" in category_list

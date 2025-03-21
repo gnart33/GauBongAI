@@ -18,6 +18,7 @@ jupyter = "^1.0.0"
 ipykernel = "^6.0.0"
 pandasai = "^2.0.0"
 python-dotenv = "^1.0.0"
+polars = "^1.25.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

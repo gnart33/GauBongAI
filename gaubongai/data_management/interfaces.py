@@ -1,3 +1,5 @@
+"""Data management interfaces."""
+
 from typing import Protocol, Dict, Any, List, Union, Optional, runtime_checkable
 from pathlib import Path
 from enum import Enum, auto
@@ -6,20 +8,22 @@ import copy
 
 
 class DataCategory(Enum):
-    """Categories of data that can be handled."""
+    """Data category enumeration."""
 
-    TABULAR = auto()
-    TEXT = auto()
-    DOCUMENT = auto()
-    IMAGE = auto()
-    MIXED = auto()
+    TABULAR = "tabular"
+    TEXT = "text"
+    DOCUMENT = "document"
+    IMAGE = "image"
+    MIXED = "mixed"
 
 
 @dataclass(frozen=True)
 class DataInfo:
-    data: Any  # The actual data (e.g., DataFrame, text, image)
-    metadata: Dict[str, Any]  # Associated metadata
-    category: DataCategory  # Type of data (TABULAR, TEXT, etc.)
+    """Data information container."""
+
+    data: Any
+    metadata: Dict[str, Any]
+    category: DataCategory
     source_path: Optional[Path] = None  # Original file path
 
     def __post_init__(self):
@@ -28,22 +32,22 @@ class DataInfo:
         object.__setattr__(self, "metadata", copy.deepcopy(self.metadata))
 
 
-@runtime_checkable
-class DataPlugin(Protocol):
-    """Protocol for data source plugins."""
+class DataPlugin:
+    """Base class for data plugins."""
 
     name: str
     supported_extensions: List[str]
     data_category: DataCategory
+    priority: int = 1
 
     @classmethod
     def can_handle(cls, file_path: Path) -> bool:
         """Check if plugin can handle the given file."""
-        ...
+        return file_path.suffix in cls.supported_extensions
 
     def load(self, file_path: Path, **kwargs) -> DataInfo:
-        """Load data from the file."""
-        ...
+        """Load data from file."""
+        raise NotImplementedError
 
 
 @runtime_checkable
@@ -54,12 +58,12 @@ class DataTransformation(Protocol):
     supported_categories: List[DataCategory]
 
     def can_transform(self, data_info: DataInfo) -> bool:
-        """Check if transform can handle the data."""
-        ...
+        """Check if transformation can be applied to data."""
+        return data_info.category in self.supported_categories
 
     def transform(self, data_info: DataInfo) -> DataInfo:
-        """Transform the data."""
-        ...
+        """Transform data."""
+        raise NotImplementedError
 
 
 @runtime_checkable
@@ -83,4 +87,4 @@ class Pipeline(Protocol):
 
     def execute(self, data_info: DataInfo) -> DataInfo:
         """Execute pipeline on data."""
-        ...
+        raise NotImplementedError

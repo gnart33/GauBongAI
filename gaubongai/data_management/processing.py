@@ -1,7 +1,6 @@
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import pandas as pd
-import warnings
 
 from .interfaces import DataInfo, DataCategory
 from .managers import PluginManager, PipelineManager
@@ -29,35 +28,39 @@ class DataProcessingManager:
 
     def process_file(
         self,
-        file_path: Union[str, Path],
+        file_path: Path,
         name: Optional[str] = None,
         pipeline_name: Optional[str] = None,
+        plugin_name: Optional[str] = None,
         **kwargs,
     ) -> DataInfo:
-        """
-        Process a file using appropriate plugin and optional pipeline.
+        """Process a file using appropriate plugin and optional pipeline.
 
         Args:
             file_path: Path to the file to process
             name: Optional name to reference the data
             pipeline_name: Optional name of pipeline to process the data
+            plugin_name: Optional name of the plugin to use
             **kwargs: Additional arguments passed to the plugin's load method
 
         Returns:
             DataInfo containing the processed data and metadata
         """
-        file_path = Path(file_path)
-        if name is None:
-            name = file_path.stem
+        # Convert string path to Path object if needed
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
 
         # Get appropriate plugin
-        plugin_cls = self.plugin_manager.get_plugin(file_path)
-        if plugin_cls is None:
+        plugin = self.plugin_manager.get_plugin(file_path, plugin_name=plugin_name)
+        if plugin is None:
             raise ValueError(f"No plugin found for file: {file_path}")
 
-        # Load data using plugin
-        plugin = plugin_cls()
+        # Load data
         data_info = plugin.load(file_path, **kwargs)
+
+        # Add name to metadata if provided
+        if name:
+            data_info.metadata["name"] = name
 
         # Process through pipeline if specified
         if pipeline_name:
@@ -118,3 +121,21 @@ class DataProcessingManager:
         """Load a CSV file (maintained for backward compatibility)."""
         data_info = self.process_file(file_path, name, **pandas_kwargs)
         return data_info.data
+
+    def list_available_variants(self, file_path: Path) -> Dict[str, Any]:
+        """List all available plugin variants for a given file.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            Dictionary containing variant information
+        """
+        variants = self.plugin_manager.get_variants_for_file(file_path)
+        return {
+            "file_type": file_path.suffix,
+            "variants": [
+                {"name": name, "variant": variant.name, "priority": priority}
+                for name, variant, priority in variants
+            ],
+        }

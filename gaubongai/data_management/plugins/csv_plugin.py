@@ -1,52 +1,66 @@
+"""CSV data plugin implementations."""
+
 from pathlib import Path
 import pandas as pd
-from typing import Dict, Any
-from ..interfaces import DataPlugin, DataInfo, DataCategory
+import polars as pl
+
+from gaubongai.data_management.interfaces import (
+    DataPlugin,
+    DataInfo,
+    DataCategory,
+)
 
 
-class CSVPlugin(DataPlugin):
-    """Plugin for handling CSV files."""
+class PandasCSVPlugin(DataPlugin):
+    """CSV plugin using pandas implementation."""
 
-    name = "csv_plugin"
+    name = "pandas_csv"
     supported_extensions = [".csv"]
     data_category = DataCategory.TABULAR
-
-    @classmethod
-    def can_handle(cls, file_path: Path) -> bool:
-        """Check if file is a CSV."""
-        return file_path.suffix.lower() in cls.supported_extensions
+    priority = 1
 
     def load(self, file_path: Path, **kwargs) -> DataInfo:
-        """Load data from CSV file."""
-        # Basic CSV reading options
-        read_options = {
-            "encoding": kwargs.get("encoding", "utf-8"),
-            "sep": kwargs.get("separator", ","),
-            "na_values": kwargs.get("na_values", ["", "NA", "N/A"]),
-        }
-
-        # Check if file exists
+        """Load CSV file using pandas."""
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
         try:
-            # Read the CSV file
-            df = pd.read_csv(file_path, **read_options)
-
-            # Basic metadata about the data
-            metadata: Dict[str, Any] = {
-                "rows": len(df),
-                "columns": list(df.columns),
-                "missing_values": df.isna().sum().to_dict(),
-                "dtypes": df.dtypes.astype(str).to_dict(),
+            data = pd.read_csv(file_path, **kwargs)
+            metadata = {
+                "rows": len(data),
+                "columns": list(data.columns),
+                "dtypes": data.dtypes.astype(str).to_dict(),
+                "implementation": "pandas",
             }
+            return DataInfo(data=data, metadata=metadata, category=self.data_category)
+        except Exception as e:
+            raise ValueError(f"Error loading CSV file: {e}")
 
-            return DataInfo(
-                data=df,
-                metadata=metadata,
-                category=self.data_category,
-                source_path=file_path,
-            )
-        except pd.errors.ParserError as e:
-            # Re-raise parser errors for malformed CSV files
-            raise pd.errors.ParserError(f"Error parsing CSV file: {e}")
+
+class PolarsCSVPlugin(DataPlugin):
+    """Memory-efficient CSV plugin using polars implementation."""
+
+    name = "polars_csv"
+    supported_extensions = [".csv"]
+    data_category = DataCategory.TABULAR
+    priority = 2  # Higher priority for large files
+
+    def load(self, file_path: Path, **kwargs) -> DataInfo:
+        """Load CSV file using polars."""
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        try:
+            data = pl.read_csv(file_path, **kwargs)
+            metadata = {
+                "rows": data.height,
+                "columns": data.columns,
+                "dtypes": {
+                    col: str(dtype) for col, dtype in zip(data.columns, data.dtypes)
+                },
+                "implementation": "polars",
+                "memory_usage": data.estimated_size(),
+            }
+            return DataInfo(data=data, metadata=metadata, category=self.data_category)
+        except Exception as e:
+            raise ValueError(f"Error loading CSV file: {e}")

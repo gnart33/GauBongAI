@@ -1,9 +1,8 @@
-from typing import Dict, Type, List, Optional
+from typing import Dict, Type, List, Optional, Tuple
 from pathlib import Path
 import importlib
 import pkgutil
 from gaubongai.data_management.interfaces import (
-    DataCategory,
     DataInfo,
     DataPlugin,
     DataTransformation,
@@ -12,55 +11,75 @@ from gaubongai.data_management.interfaces import (
 
 
 class PluginManager:
-    """Manages data source plugins."""
+    """Manager for data source plugins."""
 
-    def __init__(self, plugin_package: str = "gaubongai.plugins"):
-        self.plugin_package = plugin_package
-        self.plugins: Dict[str, DataPlugin] = {}
+    def __init__(self):
+        """Initialize plugin manager."""
+        self.plugins: Dict[str, List[Type[DataPlugin]]] = {}
+        self.plugin_package = "gaubongai.data_management.plugins"
         self._load_plugins()
 
-    def _load_plugins(self) -> None:
-        """Dynamically load all plugins from plugin package."""
+    def _load_plugins(self):
+        """Load plugins from package."""
         try:
             package = importlib.import_module(self.plugin_package)
             for _, name, _ in pkgutil.iter_modules(package.__path__):
-                module = importlib.import_module(f"{self.plugin_package}.{name}")
-                for item_name in dir(module):
-                    item = getattr(module, item_name)
-                    if (
-                        isinstance(item, type)
-                        and hasattr(item, "name")
-                        and hasattr(item, "can_handle")
-                    ):
-                        self.plugins[item.name] = item
-        except ImportError:
-            # Log warning about no plugins found
-            pass
+                try:
+                    module = importlib.import_module(f"{self.plugin_package}.{name}")
+                    for item in dir(module):
+                        obj = getattr(module, item)
+                        if (
+                            isinstance(obj, type)
+                            and issubclass(obj, DataPlugin)
+                            and obj != DataPlugin
+                        ):
+                            self.register_plugin(obj)
+                except Exception as e:
+                    print(f"Error loading plugin {name}: {e}")
+        except Exception as e:
+            print(f"Error loading plugins: {e}")
 
-    def register_plugin(self, plugin: DataPlugin) -> None:
+    def register_plugin(self, plugin_class: Type[DataPlugin]):
         """Register a new plugin."""
-        if plugin.name in self.plugins:
-            raise ValueError(f"Plugin '{plugin.name}' already exists")
-        self.plugins[plugin.name] = plugin
+        for ext in plugin_class.supported_extensions:
+            if ext not in self.plugins:
+                self.plugins[ext] = []
+            if plugin_class not in self.plugins[ext]:
+                self.plugins[ext].append(plugin_class)
+                # Sort plugins by priority (highest first)
+                self.plugins[ext].sort(key=lambda p: p.priority)
 
-    def get_plugin(self, file_path: Path) -> Optional[DataPlugin]:
-        """Get a plugin that can handle the given file."""
-        for plugin in self.plugins.values():
-            if plugin.can_handle(file_path):
-                return plugin
-        return None
+    def get_plugin(
+        self, file_path: Path, plugin_name: Optional[str] = None
+    ) -> Optional[DataPlugin]:
+        """Get appropriate plugin for file."""
+        ext = file_path.suffix
+        if ext not in self.plugins:
+            return None
 
-    def list_plugins(self) -> List[str]:
-        """List all available plugins."""
-        return list(self.plugins.keys())
+        available_plugins = self.plugins[ext]
 
-    def get_plugins_for_category(self, category: DataCategory) -> List[DataPlugin]:
-        """Get all plugins that handle a specific data category."""
-        return [
-            plugin
-            for plugin in self.plugins.values()
-            if plugin.data_category == category
-        ]
+        if plugin_name:
+            # Find plugin by name
+            for plugin_class in available_plugins:
+                if plugin_class.name == plugin_name:
+                    return plugin_class()
+            raise ValueError(
+                f"Plugin '{plugin_name}' not found. Available plugins: {[p.name for p in available_plugins]}"
+            )
+
+        # Return highest priority plugin
+        return available_plugins[0]() if available_plugins else None
+
+    def list_plugins(self) -> List[Tuple[str, str, int]]:
+        """List all registered plugins with their names and priorities."""
+        result = []
+        for ext, plugins in self.plugins.items():
+            for plugin in plugins:
+                result.append((plugin.name, ext, plugin.priority))
+        return sorted(
+            result, key=lambda x: (-x[2], x[0])
+        )  # Sort by priority (desc) then name
 
 
 class PipelineManager:
