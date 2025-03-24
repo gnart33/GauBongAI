@@ -4,7 +4,7 @@ from enum import Enum, auto
 import pandas as pd
 import numpy as np
 
-from gaubongai.data_management.interfaces import DataInfo, DataCategory
+from gaubongai.data_management.types import DataContainer, DataCategory
 
 
 class QualityCheckCategory(Enum):
@@ -36,11 +36,11 @@ class QualityCheck(Protocol):
     category: QualityCheckCategory
     description: str
 
-    def check(self, data: DataInfo) -> QualityCheckResult:
+    def check(self, data: DataContainer) -> QualityCheckResult:
         """Perform the quality check on the data."""
         ...
 
-    def can_handle(self, data: DataInfo) -> bool:
+    def can_handle(self, data: DataContainer) -> bool:
         """Check if this quality check can handle the given data."""
         ...
 
@@ -49,7 +49,7 @@ class QualityCheck(Protocol):
 class QualityReport:
     """Comprehensive quality report for a dataset."""
 
-    data_info: DataInfo
+    data_container: DataContainer
     checks_performed: List[QualityCheckResult]
     timestamp: str
     metadata: Dict[str, Any]

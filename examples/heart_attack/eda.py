@@ -11,7 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-from gaubongai.data_management.interfaces import DataInfo, DataCategory
+from gaubongai.data_management.types import DataInfo, DataCategory
 from gaubongai.analysis.eda import EDAManager, UnivariateAnalyzer, AnalysisType
 
 # Create output directory for visualizations

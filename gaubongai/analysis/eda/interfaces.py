@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from gaubongai.data_management.interfaces import DataInfo, DataCategory
+from gaubongai.data_management.types import DataContainer, DataCategory
 from gaubongai.analysis.quality.interfaces import QualityReport
 
 
@@ -27,7 +27,7 @@ class AnalysisResult:
 
     analysis_name: str
     analysis_type: AnalysisType
-    data_info: DataInfo
+    data_container: DataContainer
     statistics: Dict[str, Any]  # Statistical measures
     visualizations: List[Any]  # List of plot objects
     insights: List[str]  # Key findings in human readable format
@@ -43,12 +43,12 @@ class DataAnalyzer(Protocol):
     description: str
 
     def analyze(
-        self, data: DataInfo, quality_report: Optional[QualityReport] = None
+        self, data: DataContainer, quality_report: Optional[QualityReport] = None
     ) -> AnalysisResult:
         """Perform analysis on the data."""
         ...
 
-    def can_analyze(self, data: DataInfo) -> bool:
+    def can_analyze(self, data: DataContainer) -> bool:
         """Check if this analyzer can handle the given data."""
         return data.category in self.supported_categories
 
@@ -57,7 +57,7 @@ class DataAnalyzer(Protocol):
 class EDAReport:
     """Comprehensive EDA report combining multiple analyses."""
 
-    data_info: DataInfo
+    data_container: DataContainer
     quality_report: Optional[QualityReport]
     analyses: List[AnalysisResult]
     timestamp: str

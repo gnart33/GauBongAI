@@ -7,7 +7,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from dataclasses import dataclass, field
 
-from gaubongai.data_management.interfaces import DataInfo, DataCategory
+from gaubongai.data_management.types import DataContainer, DataCategory
 from gaubongai.analysis.quality.interfaces import QualityReport
 from gaubongai.analysis.eda.interfaces import DataAnalyzer, AnalysisType, AnalysisResult
 
@@ -26,7 +26,7 @@ class UnivariateAnalyzer(DataAnalyzer):
     )
 
     def analyze(
-        self, data: DataInfo, quality_report: Optional[QualityReport] = None
+        self, data: DataContainer, quality_report: Optional[QualityReport] = None
     ) -> AnalysisResult:
         """Perform univariate analysis on the data."""
         if not isinstance(data.data, pd.DataFrame):

@@ -3,7 +3,7 @@ from datetime import datetime
 import importlib
 import pkgutil
 
-from gaubongai.data_management.interfaces import DataInfo
+from gaubongai.data_management.types import DataContainer
 from .interfaces import QualityCheck, QualityReport, QualityCheckCategory
 from .checks import CompletenessCheck
 
@@ -35,7 +35,7 @@ class QualityManager:
         """Get all checks for a specific category."""
         return [check for check in self.checks.values() if check.category == category]
 
-    def run_check(self, data: DataInfo, check_name: str) -> QualityReport:
+    def run_check(self, data: DataContainer, check_name: str) -> QualityReport:
         """Run a specific quality check on the data."""
         if check_name not in self.checks:
             raise ValueError(f"Check '{check_name}' not found")
@@ -53,7 +53,7 @@ class QualityManager:
             metadata={"check_name": check_name, "data_category": data.category.name},
         )
 
-    def run_all_checks(self, data: DataInfo) -> QualityReport:
+    def run_all_checks(self, data: DataContainer) -> QualityReport:
         """Run all applicable quality checks on the data."""
         results = []
 

@@ -4,7 +4,7 @@ import polars as pl
 import numpy as np
 from datetime import datetime
 
-from gaubongai.data_management.interfaces import DataInfo, DataCategory
+from gaubongai.data_management.types import DataContainer, DataCategory
 from .interfaces import QualityCheck, QualityCheckResult, QualityCheckCategory
 
 
@@ -15,13 +15,13 @@ class CompletenessCheck:
     category = QualityCheckCategory.COMPLETENESS
     description = "Analyzes missing values and completeness patterns in tabular data"
 
-    def can_handle(self, data: DataInfo) -> bool:
+    def can_handle(self, data: DataContainer) -> bool:
         """Check if data is tabular and can be analyzed."""
         return data.category == DataCategory.TABULAR and isinstance(
             data.data, (pd.DataFrame, pd.Series, pl.DataFrame)
         )
 
-    def check(self, data: DataInfo) -> QualityCheckResult:
+    def check(self, data: DataContainer) -> QualityCheckResult:
         """Perform completeness analysis on tabular data."""
         if not self.can_handle(data):
             raise ValueError("Data must be tabular (DataFrame or Series)")

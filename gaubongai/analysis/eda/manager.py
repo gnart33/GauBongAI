@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Type
 from datetime import datetime
 import logging
 
-from gaubongai.data_management.interfaces import DataInfo
+from gaubongai.data_management.types import DataContainer
 from gaubongai.analysis.quality.interfaces import QualityReport
 from gaubongai.analysis.eda.interfaces import (
     DataAnalyzer,
@@ -29,7 +29,7 @@ class EDAManager:
         self._analyzers[instance.name] = instance
         logger.info(f"Registered analyzer: {instance.name}")
 
-    def get_compatible_analyzers(self, data: DataInfo) -> List[DataAnalyzer]:
+    def get_compatible_analyzers(self, data: DataContainer) -> List[DataAnalyzer]:
         """Get all analyzers compatible with the given data."""
         return [
             analyzer
@@ -39,7 +39,7 @@ class EDAManager:
 
     def analyze(
         self,
-        data: DataInfo,
+        data: DataContainer,
         quality_report: Optional[QualityReport] = None,
         analysis_types: Optional[List[AnalysisType]] = None,
         analyzer_names: Optional[List[str]] = None,
