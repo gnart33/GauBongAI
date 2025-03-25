@@ -11,7 +11,6 @@ class PandasCSVLoader(BasePlugin):
     name = "pandas_csv"
     supported_extensions = [".csv", ".tsv", ".txt"]
     data_category = DataCategory.TABULAR
-    priority = 1
 
     def load(self, file_path: Path, **kwargs) -> DataContainer:
         """Load CSV file using pandas."""

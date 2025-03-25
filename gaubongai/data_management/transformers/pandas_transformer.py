@@ -5,11 +5,55 @@ from ..types import BasePlugin, DataContainer, DataCategory
 
 
 class PandasDfTransformer(BasePlugin):
-    """Transform DataFrame columns to specified data types.
+    """Transform DataFrame columns using pandas native operations and type conversions.
 
-    By default, this transformer uses 'coerce' for error handling in numeric and datetime conversions.
-    This means invalid values will be converted to NaN (for numeric) or NaT (for datetime) instead of raising errors.
-    You can override this by explicitly setting 'errors' in the column options.
+    The transformer uses a unified column_specs dictionary where each key is the original column name
+    and the value is a specification dictionary containing:
+        - 'dtype': The target pandas dtype ('string', 'datetime64[ns]', 'float64', 'category', 'boolean', etc.)
+        - 'convert_args': Arguments passed to the conversion function (pd.to_datetime, pd.to_numeric, etc.)
+        - 'astype_args': Additional arguments passed to astype() for categorical and other types
+        - 'transform': Optional transformation function or lambda to apply before type conversion
+        - 'na_values': Optional list of values to treat as NA/NaN
+        - 'fillna': Optional value or method to fill NA/NaN values
+        - 'rename': Optional new name for the column
+
+    Examples:
+    ```python
+    specs = {
+        # Simple type conversion
+        'price': {
+            'dtype': 'float64',
+            'convert_args': {'errors': 'coerce'}
+        },
+
+        # Renaming with type conversion
+        'date': {
+            'dtype': 'datetime64[ns]',
+            'convert_args': {'format': '%Y-%m-%d', 'errors': 'coerce'},
+            'rename': 'transaction_date'
+        },
+
+        # Transformation with NA handling
+        'category': {
+            'dtype': 'category',
+            'astype_args': {'ordered': True, 'categories': ['low', 'medium', 'high']},
+            'transform': str.lower,
+            'na_values': ['unknown', 'n/a'],
+            'fillna': 'low'
+        },
+
+        # Boolean with custom mapping and renaming
+        'status': {
+            'dtype': 'boolean',
+            'convert_args': {
+                'true_values': ['yes', 'valid', '1'],
+                'false_values': ['no', 'invalid', '0']
+            },
+            'rename': 'is_valid'
+        }
+    }
+    transformer = PandasDfTransformer(column_specs=specs)
+    ```
     """
 
     name = "pandas_df_transformer"
@@ -17,41 +61,28 @@ class PandasDfTransformer(BasePlugin):
 
     def __init__(
         self,
-        text_columns: Optional[Dict[str, Dict]] = None,
-        datetime_columns: Optional[Dict[str, Dict]] = None,
-        numeric_columns: Optional[Dict[str, Dict]] = None,
-        categorical_columns: Optional[Dict[str, Dict]] = None,
-        boolean_columns: Optional[Dict[str, Dict]] = None,
-        rename_columns: Optional[Dict[str, str]] = None,
+        column_specs: Optional[Dict[str, Dict[str, Any]]] = None,
     ):
-        """Initialize the transformer with column specifications and their conversion options.
+        """Initialize the transformer with column specifications.
 
         Args:
-            text_columns: Dict of columns and their string conversion options
-                e.g., {'name': {'dtype': 'string', 'na': 'unknown'}}
-            datetime_columns: Dict of columns and their datetime conversion options
-                e.g., {'date': {'format': '%Y-%m-%d'}}
-                Default error handling: errors='coerce' (invalid values become NaT)
-            numeric_columns: Dict of columns and their numeric conversion options
-                e.g., {'price': {'dtype': 'float64'}}
-                Default error handling: errors='coerce' (invalid values become NaN)
-            categorical_columns: Dict of columns and their categorical conversion options
-                e.g., {'status': {'ordered': True, 'categories': ['low', 'medium', 'high']}}
-            boolean_columns: Dict of columns and their boolean conversion options
-                e.g., {'is_active': {'true_values': ['yes', 'true', '1'], 'false_values': ['no', 'false', '0']}}
-            rename_columns: Dict mapping old column names to new column names
-                e.g., {'old_name': 'new_name', 'price_eur': 'price_usd'}
+            column_specs: Dictionary mapping column names to their conversion specifications.
+                Each spec can contain:
+                - 'dtype': Required. The target pandas dtype
+                - 'convert_args': Optional conversion function arguments
+                - 'astype_args': Optional astype arguments
+                - 'transform': Optional transformation function
+                - 'na_values': Optional list of values to treat as NA
+                - 'fillna': Optional value or method to fill NA values
+                - 'rename': Optional new name for the column
         """
-        self.text_columns = text_columns or {}
-        self.datetime_columns = datetime_columns or {}
-        self.numeric_columns = numeric_columns or {}
-        self.categorical_columns = categorical_columns or {}
-        self.boolean_columns = boolean_columns or {}
-        self.rename_columns = rename_columns or {}
+        self.column_specs = column_specs or {}
 
     def can_transform(self, data_container: DataContainer) -> bool:
-        """Check if data can be transformed."""
-        if data_container.category != DataCategory.TABULAR:
+        """Check if data can be transformed, by checking
+        - the data is a pandas DataFrame
+        - the specified columns exist in the DataFrame"""
+        if not data_container.category in self.supported_categories:
             return False
 
         if not isinstance(data_container.data, pd.DataFrame):
@@ -59,93 +90,66 @@ class PandasDfTransformer(BasePlugin):
 
         # Check if specified columns exist in the DataFrame
         df_columns = set(data_container.data.columns)
-        all_specified_columns = (
-            set(self.text_columns.keys())
-            | set(self.datetime_columns.keys())
-            | set(self.numeric_columns.keys())
-            | set(self.categorical_columns.keys())
-            | set(self.boolean_columns.keys())
-        )
-        if not all_specified_columns.issubset(df_columns):
+        if not set(self.column_specs.keys()).issubset(df_columns):
             raise ValueError(
-                f"Columns {all_specified_columns - df_columns} not found in DataFrame"
+                f"Columns {set(self.column_specs.keys()) - df_columns} not found in DataFrame"
             )
 
         return True
 
-    def _convert_text_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert columns to string type with options."""
-        for col, options in self.text_columns.items():
-            df[col] = df[col].astype(**options)
-        return df
+    def _convert_column(self, series: pd.Series, spec: Dict[str, Any]) -> pd.Series:
+        """Convert a single column according to its specification."""
+        # Apply pre-conversion transformation if specified
+        if "transform" in spec:
+            series = series.apply(spec["transform"])
 
-    def _convert_datetime_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert columns to datetime using specified options."""
-        for col, options in self.datetime_columns.items():
-            try:
-                # Add 'coerce' as default error handling if not specified
-                opts = {"errors": "coerce", **options}
-                df[col] = pd.to_datetime(df[col], **opts)
-            except Exception as e:
-                if opts.get("errors") == "raise":
-                    raise ValueError(f"Error converting {col} to datetime: {str(e)}")
-        return df
+        # Handle NA values
+        if "na_values" in spec:
+            series = series.replace(spec["na_values"], pd.NA)
 
-    def _convert_numeric_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert columns to specified numeric types with options."""
-        for col, options in self.numeric_columns.items():
-            try:
-                # Add 'coerce' as default error handling if not specified
-                opts = {"errors": "coerce", **options}
-                df[col] = pd.to_numeric(df[col], **opts)
-            except Exception as e:
-                if opts.get("errors") == "raise":
-                    raise ValueError(f"Error converting {col} to numeric: {str(e)}")
-        return df
+        dtype = spec["dtype"]
+        convert_args = spec.get("convert_args", {})
+        astype_args = spec.get("astype_args", {})
 
-    def _convert_categorical_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert columns to categorical type with options."""
-        for col, options in self.categorical_columns.items():
-            df[col] = df[col].astype("category", **options)
-        return df
+        try:
+            if dtype.startswith("datetime"):
+                series = pd.to_datetime(series, **convert_args)
+            elif dtype in ("float", "float64", "float32", "int", "int64", "int32"):
+                series = pd.to_numeric(series, **convert_args)
+            elif dtype == "boolean":
+                # Handle boolean conversion with custom true/false values if provided
+                if "true_values" in convert_args or "false_values" in convert_args:
+                    true_values = convert_args.get(
+                        "true_values", ["true", "1", "yes", "y"]
+                    )
+                    false_values = convert_args.get(
+                        "false_values", ["false", "0", "no", "n"]
+                    )
+                    bool_map = {val.lower(): True for val in true_values}
+                    bool_map.update({val.lower(): False for val in false_values})
+                    if series.dtype == "object":
+                        series = series.str.lower().map(bool_map)
+                series = series.astype("boolean", **astype_args)
+            else:
+                # For all other types (string, category, etc.), use astype directly
+                series = series.astype(dtype, **astype_args)
 
-    def _convert_boolean_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert columns to boolean type with custom true/false values."""
-        for col, options in self.boolean_columns.items():
-            try:
-                # Get true and false values from options
-                true_values = options.get("true_values", ["true", "1", "yes", "y"])
-                false_values = options.get("false_values", ["false", "0", "no", "n"])
+            # Handle NA filling after conversion
+            if "fillna" in spec:
+                if isinstance(spec["fillna"], str) and spec["fillna"] in [
+                    "ffill",
+                    "bfill",
+                ]:
+                    series = series.fillna(method=spec["fillna"])
+                else:
+                    series = series.fillna(spec["fillna"])
 
-                # Create mapping dictionary
-                bool_map = {val.lower(): True for val in true_values}
-                bool_map.update({val.lower(): False for val in false_values})
+            return series
 
-                if df[col].dtype == "object":
-                    df[col] = df[col].str.lower().map(bool_map)
-
-                # Convert to boolean with remaining options
-                bool_options = {
-                    k: v
-                    for k, v in options.items()
-                    if k not in ["true_values", "false_values"]
-                }
-                df[col] = df[col].astype("boolean", **bool_options)
-            except Exception as e:
-                if options.get("errors") == "raise":
-                    raise ValueError(f"Error converting {col} to boolean: {str(e)}")
-        return df
-
-    def _rename_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Rename columns according to the rename_columns mapping."""
-        if self.rename_columns:
-            # Only rename columns that exist in the DataFrame
-            valid_renames = {
-                k: v for k, v in self.rename_columns.items() if k in df.columns
-            }
-            if valid_renames:
-                df = df.rename(columns=valid_renames)
-        return df
+        except Exception as e:
+            if convert_args.get("errors") == "raise":
+                raise ValueError(f"Error converting column to {dtype}: {str(e)}")
+            return series
 
     def transform(self, data_container: DataContainer) -> DataContainer:
         """Transform the DataFrame by converting column data types."""
@@ -156,24 +160,22 @@ class PandasDfTransformer(BasePlugin):
 
         df = data_container.data.copy()
 
-        # Apply transformations in sequence
-        df = self._convert_text_columns(df)
-        df = self._convert_datetime_columns(df)
-        df = self._convert_numeric_columns(df)
-        df = self._convert_categorical_columns(df)
-        df = self._convert_boolean_columns(df)
-        df = self._rename_columns(df)  # Apply renaming after all transformations
+        # Process each column specification
+        for col, spec in self.column_specs.items():
+            # Apply transformations
+            transformed_series = self._convert_column(df[col], spec)
+
+            # Handle renaming
+            new_name = spec.get("rename", col)
+            df[new_name] = transformed_series
+            if new_name != col:  # Only drop if actually renamed
+                df = df.drop(columns=[col])
 
         # Track changes in metadata
         changes = {
             "processor": self.name,
             "transformations": {
-                "text_columns": self.text_columns,
-                "datetime_columns": self.datetime_columns,
-                "numeric_columns": self.numeric_columns,
-                "categorical_columns": self.categorical_columns,
-                "boolean_columns": self.boolean_columns,
-                "rename_columns": self.rename_columns,  # Add rename operations to metadata
+                "column_specs": self.column_specs,
             },
         }
 

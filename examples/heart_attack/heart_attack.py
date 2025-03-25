@@ -17,24 +17,35 @@ def load_without_transformers():
     print(data_container.data.head())
 
 
-# def load_with_transformers():
-#     file_path = Path("examples/heart_attack/heart_attack_dataset.csv")
+def load_with_transformers():
+    file_path = Path("examples/heart_attack/heart_attack_dataset.csv")
 
-#     loader_manager = LoaderManager()
+    # loader_manager = LoaderManager()
 
-#     loader = loader_manager.get_plugin("pandas_csv")
+    loader = PandasCSVLoader()
 
-#     transformer = PandasDfTransformer(
-#         rename_columns={
-#             "Age": "age",
-#         }
-#     )
+    column_specs = {
+        # Simple conversion
+        "Age": {"dtype": "float64"},
+        "BMI": {"dtype": "float64"},
+        "Gender": {
+            "rename": "gender",
+            "dtype": "category",
+            "transform": str.lower,
+            "na_values": ["unknown", "n/a"],
+            "fillna": "other",
+        },
+    }
 
-#     data_processor = DataProcessor(loader=loader, transformers=[transformer])
+    transformer = PandasDfTransformer(column_specs=column_specs)
 
-#     data_container = data_processor.process_file(file_path)
+    data_processor = DataProcessor(loader=loader, transformers=[transformer])
 
-#     print(data_container.data.head())
+    data_container = data_processor.process_file(file_path)
+
+    # print(data_container.data.head())
+    print(data_container.data.gender.dtype)
+    print(data_container.data.BMI.dtype)
 
 
 def check_loaders():
@@ -45,7 +56,8 @@ def check_loaders():
 
 def main():
     # check_loaders()
-    load_without_transformers()
+    # load_without_transformers()
+    load_with_transformers()
 
 
 if __name__ == "__main__":

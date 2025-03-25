@@ -2,6 +2,8 @@
 
 from ..types import PluginManager
 
+from .pandas_transformer import *
+
 
 class TransformerManager(PluginManager):
     """Manager for data transformation plugins."""
