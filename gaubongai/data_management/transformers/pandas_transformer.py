@@ -100,6 +100,8 @@ class PandasDfTransformer(BasePlugin):
     def _convert_column(self, series: pd.Series, spec: Dict[str, Any]) -> pd.Series:
         """Convert a single column according to its specification."""
         # Apply pre-conversion transformation if specified
+        if spec.get("remove", False):
+            return None
         if "transform" in spec:
             series = series.apply(spec["transform"])
 
@@ -170,6 +172,7 @@ class PandasDfTransformer(BasePlugin):
             df[new_name] = transformed_series
             if new_name != col:  # Only drop if actually renamed
                 df = df.drop(columns=[col])
+        df = df.dropna(axis=1, how="all")
 
         # Track changes in metadata
         changes = {

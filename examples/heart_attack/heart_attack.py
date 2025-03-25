@@ -14,6 +14,7 @@ def load_without_transformers():
     data_container = loader.load(file_path)
 
     print(data_container.metadata.get("dtypes").keys())
+    print(data_container.data.shape)
 
 
 def load_with_transformers():
@@ -27,10 +28,11 @@ def load_with_transformers():
         "Gender": {
             "rename": "gender",
             "dtype": "category",
-            "transform": str.lower,
             "na_values": ["unknown", "n/a"],
             "fillna": "other",
+            "transform": str.lower,
         },
+        "Cholesterol": {"remove": True},
     }
 
     transformer = PandasDfTransformer(column_specs=column_specs)
@@ -39,7 +41,9 @@ def load_with_transformers():
 
     data_container = data_processor.process_file(file_path)
 
-    print(data_container.metadata.get("transformation_history"))
+    # print(data_container.metadata.get("transformation_history"))
+    print(data_container.metadata.get("dtypes").keys())
+    print(data_container.data.shape)
 
 
 def main():

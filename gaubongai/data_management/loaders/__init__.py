@@ -4,8 +4,6 @@ from ..types import PluginManager
 
 from .csv_loader import *
 
-# __all__ = ["LoaderManager", "PandasCSVLoader"]
-
 
 class LoaderManager(PluginManager):
     """Manager for data loading plugins."""
