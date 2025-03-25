@@ -6,6 +6,9 @@ from pathlib import Path
 from .loaders import Loaders
 from .transformers import Transformers
 from .types import DataContainer, BasePlugin, DataCategory
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DataProcessor:
@@ -22,15 +25,17 @@ class DataProcessor:
         data_storage: Handles data persistence
     """
 
-    def __init__(self):
-        self.loaders = Loaders()
-        self.transformers = Transformers()
+    def __init__(
+        self,
+        loader: Optional[BasePlugin] = None,
+        transformers: Optional[BasePlugin] = None,
+    ):
+        self.loader = loader
+        self.transformers = transformers
 
     def process_file(
         self,
         file_path: Path,
-        loader: Optional[BasePlugin] = None,
-        transformers: Optional[Union[List[BasePlugin], BasePlugin]] = None,
         **kwargs,
     ) -> DataContainer:
         """Process a file using appropriate loader and optional transformers.
@@ -49,41 +54,47 @@ class DataProcessor:
         if isinstance(file_path, str):
             file_path = Path(file_path)
 
-        # Convert single transformer to list if needed
-        if transformers is not None and not isinstance(transformers, list):
-            transformers = [transformers]
-
-        # Get appropriate loader
-        if loader is None:
-            if loader.can_handle(file_path):
-                loader = loader()
-            else:
-                raise ValueError(f"No loader found for file: {file_path}")
-
         # Load data
-        data_info = loader.load(file_path, **kwargs)
+        data_info = self.loader.load(file_path, **kwargs)
 
         # Add name to metadata if provided
         # if name:
         #     data_info.metadata["name"] = name
 
+        if isinstance(self.transformers, BasePlugin):
+            self.transformers = [self.transformers]
+
         # Process through transformers if specified
-        if transformers:
-            for transformer in transformers:
+        if self.transformers:
+            for transformer in self.transformers:
                 if transformer.can_transform(data_info):
                     data_info = transformer.transform(data_info)
                 else:
-                    print(
-                        f"Warning: Transformer {transformer.name} cannot transform the data"
+                    logger.error(
+                        f"Warning: Transformer {transformer.name} cannot transform the data",
                     )
-
         return data_info
 
-    def get_data(
-        self, name: str, category: Optional[DataCategory] = None
-    ) -> Optional[DataContainer]:
-        """Retrieve stored data by name and optionally category."""
-        return self.data_storage.get(name, category)
+    def process_data_container(
+        self, data_container: DataContainer, **kwargs
+    ) -> DataContainer:
+        """Process a DataContainer using appropriate transformers.
+
+        Args:
+            data_container: DataContainer to process
+        """
+        if isinstance(self.transformers, BasePlugin):
+            self.transformers = [self.transformers]
+
+        if self.transformers:
+            for transformer in self.transformers:
+                if transformer.can_transform(data_container):
+                    data_container = transformer.transform(data_container)
+                else:
+                    logger.error(
+                        f"Warning: Transformer {transformer.name} cannot transform the data",
+                    )
+        return data_container
 
     def get_metadata(
         self, name: str, category: Optional[DataCategory] = None

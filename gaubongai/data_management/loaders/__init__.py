@@ -8,6 +8,7 @@ from .csv_loader import PandasCSVLoader
 
 # Setup module logger
 logger = logging.getLogger(__name__)
+__all__ = ["PandasCSVLoader"]
 
 
 class Loaders(PluginManager):
@@ -16,5 +17,3 @@ class Loaders(PluginManager):
     def __init__(self):
         """Initialize loader manager."""
         super().__init__()
-
-    # automate select loader when user dont specify

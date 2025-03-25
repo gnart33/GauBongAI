@@ -27,9 +27,9 @@ class PandasCSVLoader(BasePlugin):
             data = pd.read_csv(file_path, **kwargs)
             metadata = {
                 "rows": len(data),
-                "columns": list(data.columns),
-                "dtypes": data.dtypes.astype(str).to_dict(),
-                "implementation": "pandas",
+                #     "columns": list(data.columns),
+                #     "dtypes": data.dtypes.astype(str).to_dict(),
+                #     "implementation": "pandas",
             }
             return DataContainer(
                 data=data, metadata=metadata, category=self.data_category

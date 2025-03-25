@@ -49,16 +49,16 @@ class PandasDfTransformer(BasePlugin):
         self.boolean_columns = boolean_columns or {}
         self.rename_columns = rename_columns or {}
 
-    def can_transform(self, data_info: DataContainer) -> bool:
+    def can_transform(self, data_container: DataContainer) -> bool:
         """Check if data can be transformed."""
-        if data_info.category != DataCategory.TABULAR:
+        if data_container.category != DataCategory.TABULAR:
             return False
 
-        if not isinstance(data_info.data, pd.DataFrame):
-            return False
+        if not isinstance(data_container.data, pd.DataFrame):
+            raise ValueError("Data must be a pandas DataFrame")
 
         # Check if specified columns exist in the DataFrame
-        df_columns = set(data_info.data.columns)
+        df_columns = set(data_container.data.columns)
         all_specified_columns = (
             set(self.text_columns.keys())
             | set(self.datetime_columns.keys())
@@ -66,8 +66,12 @@ class PandasDfTransformer(BasePlugin):
             | set(self.categorical_columns.keys())
             | set(self.boolean_columns.keys())
         )
+        if not all_specified_columns.issubset(df_columns):
+            raise ValueError(
+                f"Columns {all_specified_columns - df_columns} not found in DataFrame"
+            )
 
-        return all_specified_columns.issubset(df_columns)
+        return True
 
     def _convert_text_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convert columns to string type with options."""
@@ -143,14 +147,14 @@ class PandasDfTransformer(BasePlugin):
                 df = df.rename(columns=valid_renames)
         return df
 
-    def transform(self, data_info: DataContainer) -> DataContainer:
+    def transform(self, data_container: DataContainer) -> DataContainer:
         """Transform the DataFrame by converting column data types."""
-        if not self.can_transform(data_info):
+        if not self.can_transform(data_container):
             raise ValueError(
                 "Data must be a pandas DataFrame with the specified columns"
             )
 
-        df = data_info.data.copy()
+        df = data_container.data.copy()
 
         # Apply transformations in sequence
         df = self._convert_text_columns(df)
@@ -174,7 +178,7 @@ class PandasDfTransformer(BasePlugin):
         }
 
         # Update metadata
-        new_metadata = data_info.metadata.copy()
+        new_metadata = data_container.metadata.copy()
         new_metadata["type_conversion_history"] = new_metadata.get(
             "type_conversion_history", []
         ) + [changes]
@@ -183,6 +187,6 @@ class PandasDfTransformer(BasePlugin):
         return DataContainer(
             data=df,
             metadata=new_metadata,
-            category=data_info.category,
-            source_path=data_info.source_path,
+            category=data_container.category,
+            source_path=data_container.source_path,
         )
