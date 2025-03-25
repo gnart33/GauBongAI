@@ -82,7 +82,7 @@ class PandasDfTransformer(BasePlugin):
         """Check if data can be transformed, by checking
         - the data is a pandas DataFrame
         - the specified columns exist in the DataFrame"""
-        if not data_container.category in self.supported_categories:
+        if not data_container.metadata.get("category") in self.supported_categories:
             return False
 
         if not isinstance(data_container.data, pd.DataFrame):
@@ -175,20 +175,18 @@ class PandasDfTransformer(BasePlugin):
         changes = {
             "processor": self.name,
             "transformations": {
-                "column_specs": self.column_specs,
+                "column_specs": str(self.column_specs),
             },
         }
 
         # Update metadata
         new_metadata = data_container.metadata.copy()
-        new_metadata["type_conversion_history"] = new_metadata.get(
-            "type_conversion_history", []
+        new_metadata["dtypes"] = df.dtypes.astype(str).to_dict()
+        new_metadata["transformation_history"] = new_metadata.get(
+            "transformation_history", []
         ) + [changes]
-        new_metadata["column_dtypes"] = df.dtypes.astype(str).to_dict()
 
         return DataContainer(
             data=df,
             metadata=new_metadata,
-            category=data_container.category,
-            source_path=data_container.source_path,
         )

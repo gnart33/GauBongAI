@@ -25,15 +25,11 @@ class DataContainer:
 
     data: Any
     metadata: Dict[str, Any]
-    category: DataCategory
-    source_path: Optional[Path] = None  # Original file path
-    notes: List[str] = field(default_factory=list)
 
     def __post_init__(self):
         """Make deep copies of mutable attributes."""
         object.__setattr__(self, "data", copy.deepcopy(self.data))
         object.__setattr__(self, "metadata", copy.deepcopy(self.metadata))
-        object.__setattr__(self, "notes", copy.deepcopy(self.notes))
 
 
 class BasePlugin(ABC):

@@ -21,13 +21,13 @@ class PandasCSVLoader(BasePlugin):
         try:
             data = pd.read_csv(file_path, **kwargs)
             metadata = {
+                "category": self.data_category,
                 "rows": len(data),
-                "columns": list(data.columns),
                 "dtypes": data.dtypes.astype(str).to_dict(),
-                "implementation": "pandas",
             }
             return DataContainer(
-                data=data, metadata=metadata, category=self.data_category
+                data=data,
+                metadata=metadata,
             )
         except Exception as e:
             raise ValueError(f"Error loading CSV file: {e}")
