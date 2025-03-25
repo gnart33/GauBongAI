@@ -1,18 +1,12 @@
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Type, Generic, TypeVar
+from typing import Any, Dict, List, Optional, Type
 from pathlib import Path
 import copy
-import pandas as pd
-from abc import ABC, abstractmethod
+from abc import ABC
 import importlib
 import pkgutil
 import inspect
-import logging
-
-# Setup module logger
-logger = logging.getLogger(__name__)
-logger.disabled = True
 
 
 class DataCategory(Enum):
@@ -63,7 +57,7 @@ class PluginManager(ABC):
     def __init__(self):
         """Initialize plugin manager."""
         self.plugins: Dict[str, Type[BasePlugin]] = {}
-        logger.debug("Initializing plugin manager: %s", self.__class__.__name__)
+        self._plugin_registry: List[Type[BasePlugin]] = []
         self._register_builtin_plugins()
 
     def register_plugin(self, plugin_class: Type[BasePlugin]) -> None:
@@ -72,26 +66,20 @@ class PluginManager(ABC):
             raise ValueError(f"Plugin {plugin_class.__name__} must have a name")
 
         self.plugins[plugin_class.name] = plugin_class
-        logger.debug(
-            "Registered plugin: %s from %s", plugin_class.name, plugin_class.__module__
-        )
 
     def _register_builtin_plugins(self) -> None:
         """Discover and register all plugins in the package."""
         # Get the directory containing the current plugin manager implementation
         current_module = self.__class__.__module__
-        logger.debug("Scanning for plugins in module: %s", current_module)
 
         try:
             # Import the package containing the plugins
             package = importlib.import_module(current_module)
             package_path = getattr(package, "__path__", [])
-            logger.debug("Package path: %s", package_path)
 
             # Discover all modules in the package
             for _, module_name, _ in pkgutil.iter_modules(package_path):
                 full_module_name = f"{current_module}.{module_name}"
-                logger.debug("Found module: %s", full_module_name)
 
                 try:
                     module = importlib.import_module(full_module_name)
@@ -107,25 +95,24 @@ class PluginManager(ABC):
                             and obj.__module__ == module.__name__
                         ):  # Only register plugins defined in this module
                             self.register_plugin(obj)
+                            self._plugin_registry.append(obj)
 
                 except Exception as e:
-                    logger.error("Error loading module %s: %s", module_name, str(e))
+                    raise e
 
         except Exception as e:
-            logger.error("Error discovering plugins in %s: %s", current_module, str(e))
+            raise e
 
     def get_plugin(self, plugin_name: str) -> Optional[BasePlugin]:
         """Get plugin instance by name."""
         plugin_class = self.plugins.get(plugin_name)
         if plugin_class:
             return plugin_class()
-        logger.debug("Plugin not found: %s", plugin_name)
         return None
 
     def list_plugins(self) -> List[str]:
         """List all registered plugins."""
         plugins = self.plugins
-        logger.debug("Available plugins: %s", plugins)
         return plugins
 
     def get_plugins_by_name(self, plugin_name: str) -> List[Type[BasePlugin]]:
@@ -135,7 +122,4 @@ class PluginManager(ABC):
             for plugin_class in self.plugins.values()
             if plugin_name in plugin_class.name
         ]
-        logger.debug(
-            "Found %d plugins matching pattern '%s'", len(matching_plugins), plugin_name
-        )
         return matching_plugins

@@ -2,11 +2,7 @@
 
 from pathlib import Path
 import pandas as pd
-import polars as pl
-import logging
-
-logger = logging.getLogger(__name__)
-from gaubongai.data_management.types import DataCategory, DataContainer, BasePlugin
+from ..types import DataCategory, DataContainer, BasePlugin
 
 
 class PandasCSVLoader(BasePlugin):
@@ -27,9 +23,9 @@ class PandasCSVLoader(BasePlugin):
             data = pd.read_csv(file_path, **kwargs)
             metadata = {
                 "rows": len(data),
-                #     "columns": list(data.columns),
-                #     "dtypes": data.dtypes.astype(str).to_dict(),
-                #     "implementation": "pandas",
+                "columns": list(data.columns),
+                "dtypes": data.dtypes.astype(str).to_dict(),
+                "implementation": "pandas",
             }
             return DataContainer(
                 data=data, metadata=metadata, category=self.data_category

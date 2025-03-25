@@ -3,12 +3,7 @@
 from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 
-from .loaders import Loaders
-from .transformers import Transformers
 from .types import DataContainer, BasePlugin, DataCategory
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class DataProcessor:
@@ -55,11 +50,7 @@ class DataProcessor:
             file_path = Path(file_path)
 
         # Load data
-        data_info = self.loader.load(file_path, **kwargs)
-
-        # Add name to metadata if provided
-        # if name:
-        #     data_info.metadata["name"] = name
+        data_container = self.loader.load(file_path, **kwargs)
 
         if isinstance(self.transformers, BasePlugin):
             self.transformers = [self.transformers]
@@ -67,13 +58,13 @@ class DataProcessor:
         # Process through transformers if specified
         if self.transformers:
             for transformer in self.transformers:
-                if transformer.can_transform(data_info):
-                    data_info = transformer.transform(data_info)
+                if transformer.can_transform(data_container):
+                    data_container = transformer.transform(data_container)
                 else:
-                    logger.error(
-                        f"Warning: Transformer {transformer.name} cannot transform the data",
+                    raise ValueError(
+                        f"Transformer {transformer.name} cannot transform the data"
                     )
-        return data_info
+        return data_container
 
     def process_data_container(
         self, data_container: DataContainer, **kwargs
@@ -91,8 +82,8 @@ class DataProcessor:
                 if transformer.can_transform(data_container):
                     data_container = transformer.transform(data_container)
                 else:
-                    logger.error(
-                        f"Warning: Transformer {transformer.name} cannot transform the data",
+                    raise ValueError(
+                        f"Transformer {transformer.name} cannot transform the data"
                     )
         return data_container
 

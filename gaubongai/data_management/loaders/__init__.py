@@ -1,19 +1,18 @@
 """Data management loaders."""
 
-from typing import Dict, Type, List, Optional, Tuple, Any, Union
-from pathlib import Path
-import logging
-from ..types import PluginManager, BasePlugin
-from .csv_loader import PandasCSVLoader
-
-# Setup module logger
-logger = logging.getLogger(__name__)
-__all__ = ["PandasCSVLoader"]
+from ..types import PluginManager
 
 
-class Loaders(PluginManager):
+class LoaderManager(PluginManager):
     """Manager for data loading plugins."""
 
     def __init__(self):
         """Initialize loader manager."""
         super().__init__()
+
+
+plugin_manager = LoaderManager()
+__all__ = ["LoaderManager"]
+for plugin in plugin_manager._plugin_registry:
+    __all__.append(plugin.__name__)
+    globals()[plugin.__name__] = plugin
