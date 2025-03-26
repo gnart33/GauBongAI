@@ -1,4 +1,4 @@
-from gaubongai.data_management import DataProcessor
+from gaubongai.data_management import DataContainer, DataProcessor
 from gaubongai.data_management.loaders import LoaderManager, PandasCSVLoader
 
 from gaubongai.data_management.transformers import (
@@ -41,9 +41,14 @@ def load_with_transformers():
 
     data_container = data_processor.process_file(file_path)
 
-    # print(data_container.metadata.get("transformation_history"))
-    print(data_container.metadata.get("dtypes").keys())
-    print(data_container.data.shape)
+    new_metadata = data_container.metadata.copy()
+    new_metadata["notes"] = new_metadata.get("notes", []) + [
+        "removed Cholesterol column for testing"
+    ]
+
+    data_container = DataContainer(data=data_container.data, metadata=new_metadata)
+    print(data_container.metadata.get("notes"))
+    print(data_container.metadata)
 
 
 def main():
